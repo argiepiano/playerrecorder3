@@ -1,17 +1,19 @@
-function RecorderObject(targetID) {
+// Object to hold all the incoming MIDI data. Includes methods for playing, recording and encoding SMF
+
+function RecorderObject(targetID) {   // DOM element ID where recorder UI lives
   console.log("Creating new object for ID "+targetID);
   var eventObjects = [];
   var recStartTime = 0, rAF;
-  var that = this;
+  var self = this;
   
   var target = $(targetID);
   
   this.startRecording =  function () {
-    that.stopRecording();
+    self.stopRecording();
   	console.log("Starting recording");
   	target.trigger('state:recording')
   	eventObjects = [];
-    midiInput.onmidimessage = that.onMidiMessage;
+    midiInput.onmidimessage = self.onMidiMessage; // attaches a listener to the midi input
     recStartTime = performance.now();
   }
   
@@ -20,10 +22,8 @@ function RecorderObject(targetID) {
     target.trigger("state:idle");
     midiInput.onmidimessage = null;
     window.cancelAnimationFrame(rAF);
-    reset = [176, 123, 0];
+    reset = [176, 123, 0]; // resets midi devices. Kills stuck sounds, etc.
     setTimeout(function() {midiOutput&&midiOutput.send(reset)}, 350);	
-    //eventObjects.forEach(function (element, index, array) {console.log('Time: ' + element.receivedTime +". data: " + element.data)})
-    //console.log("Raw sequence (unencoded) " + eventObjects);
   }
   
   this.playEvents =  function () {
@@ -32,17 +32,19 @@ function RecorderObject(targetID) {
     console.log("Playing...");
     target.trigger("state:playing");
     var eventPointer = 0;
-    var startTime = performance.now();
+    var startTime = performance.now(); // stores the moment when the player is started.
     rAF = window.requestAnimationFrame(
       function queueEvents(timeStamp) {
+	// This next 'while' schedules the events supposed to run only between NOW and 150 microseconds later. This is done so that the player
+	// can be stopped 
         while (eventPointer<eventObjects.length && eventObjects[eventPointer].receivedTime < (timeStamp - startTime) + 150) {
           midiOutput&&midiOutput.send(eventObjects[eventPointer].data, startTime+eventObjects[eventPointer].receivedTime);
           eventPointer++;
         }
         if (eventPointer<eventObjects.length) {
-          rAF = window.requestAnimationFrame(queueEvents);
+          rAF = window.requestAnimationFrame(queueEvents); // this runs the function queueEvents and sends a timestamp in microseconds as an argument.
         } else {
-          that.stopRecording();
+          self.stopRecording();
         }
       });
   }
