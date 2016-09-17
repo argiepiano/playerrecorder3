@@ -36,7 +36,7 @@ function RecorderObject(targetID) {   // DOM element ID where recorder UI lives
     rAF = window.requestAnimationFrame(
       function queueEvents(timeStamp) {
 	// This next 'while' schedules the events supposed to run only between NOW and 150 microseconds later. This is done so that the player
-	// can be stopped 
+	// can be stopped or tempo can be changed. see http://www.html5rocks.com/en/tutorials/audio/scheduling/
         while (eventPointer<eventObjects.length && eventObjects[eventPointer].receivedTime < (timeStamp - startTime) + 150) {
           midiOutput&&midiOutput.send(eventObjects[eventPointer].data, startTime+eventObjects[eventPointer].receivedTime);
           eventPointer++;
@@ -49,7 +49,7 @@ function RecorderObject(targetID) {   // DOM element ID where recorder UI lives
       });
   }
   
-  function internalStop() {
+  function internalStop() {  // stop without triggering stop event
       window.cancelAnimationFrame(rAF);
       reset = [176, 123, 0];
       midiOutput&&midiOutput.send(reset);	
@@ -67,7 +67,7 @@ function RecorderObject(targetID) {   // DOM element ID where recorder UI lives
     var encodedTrackArray = encodeMIDIevents(); // Encode events
     myMTrack = createTrackheader(encodedTrackArray); // Add header to track, including length
     myMTrack = myMTrack.concat(encodedTrackArray); // concat track header and encoded events
-    myMFile = myMFile.concat(createTempoTrack()); //add empty tempo track
+    myMFile = myMFile.concat(createTempoTrack()); //add empty tempo track. All SMF type 1 need Track 1 as tempo track
     myMFile = myMFile.concat(myMTrack); // add track to file
     // console.log(myMFile);
     // Get ready to save!
@@ -82,16 +82,17 @@ function RecorderObject(targetID) {   // DOM element ID where recorder UI lives
   }
   
   
-  function encodeMIDIevents(){ 
+  function encodeMIDIevents(){  // encodes a MIDI file
     var track = [];
     var previousTime = 0.0;
     var delta;
     for (var i = 0; i<eventObjects.length; i++ ) {
-      // Each midi clock is 2.6041 milliseconds at 120 quarters per minute, 192 clocks per quarter.
-      delta = Math.round((eventObjects[i].receivedTime - previousTime) / 2.6041);
+      // Each midi clock is 2.6041 milliseconds at 120 quarter notes per minute, using 192 MIDI clocks per quarter note (500 ms / 192 - 2.6041 ms
+      // per MIDI clock ).
+      delta = Math.round((eventObjects[i].receivedTime - previousTime) / 2.6041); // delta time measured in number of MIDI clocks
       previousTime = eventObjects[i].receivedTime;
       
-      // calculate Variable Length bytes
+      // calculate Variable Length bytes. see http://www.ccarh.org/courses/253/handout/vlv/
       if(delta >>> 21) {
         track.push(((delta >>> 21) & 0x7F) | 0x80);
       } 
@@ -129,7 +130,7 @@ function RecorderObject(targetID) {   // DOM element ID where recorder UI lives
   }
   
   function createTempoTrack() {
-    return [77, 84, 114, 107, 0, 0, 0, 4, 0, 255, 47, 0]; // MTrk
+    return [77, 84, 114, 107, 0, 0, 0, 4, 0, 255, 47, 0]; // MTrk  plus other header bytes for an empty tempo track.
   }
   
   /*
@@ -149,7 +150,7 @@ function RecorderObject(targetID) {   // DOM element ID where recorder UI lives
       num = parseInt(theByte,16);
       a.push(num);
     }
-    console.log(a)
+    // console.log(a)
     return a;
   }
 
