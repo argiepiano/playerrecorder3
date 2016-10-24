@@ -28,7 +28,6 @@ function RecorderObject(targetID) {   // DOM element ID where recorder UI lives
   
   this.playEvents =  function () {
     internalStop();
-    curTime = performance.now();
     console.log("Playing...");
     target.trigger("state:playing");
     var eventPointer = 0;
